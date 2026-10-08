@@ -1,0 +1,199 @@
+name: Build Orientation Plugin
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Project Files
+        run: |
+          mkdir -p src/main/resources
+          mkdir -p src/main/java/com/orientation/plugin
+
+          cat << 'EOF' > pom.xml
+          <?xml version="1.0" encoding="UTF-8"?>
+          <project xmlns="http://maven.apache.org/POM/4.0.0"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+              <modelVersion>4.0.0</modelVersion>
+              <groupId>com.orientation.plugin</groupId>
+              <artifactId>OrientationPlugin</artifactId>
+              <version>1.0</version>
+              <properties>
+                  <maven.compiler.source>1.8</maven.compiler.source>
+                  <maven.compiler.target>1.8</maven.compiler.target>
+                  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+              </properties>
+              <repositories>
+                  <repository>
+                      <id>spigotmc-repo</id>
+                      <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+                  </repository>
+              </repositories>
+              <dependencies>
+                  <dependency>
+                      <groupId>org.spigotmc</groupId>
+                      <artifactId>spigot-api</artifactId>
+                      <version>1.16.5-R0.1-SNAPSHOT</version>
+                      <scope>provided</scope>
+                  </dependency>
+              </dependencies>
+          </project>
+          EOF
+
+          cat << 'EOF' > src/main/resources/plugin.yml
+          name: OrientationPlugin
+          version: 1.0
+          main: com.orientation.plugin.OrientationPlugin
+          api-version: 1.16
+          commands:
+            orient:
+              description: Выбрать сексуальную ориентацию
+              aliases: [orientation, flags]
+              permission: orientation.use
+          permissions:
+            orientation.use:
+              default: true
+          EOF
+
+          cat << 'EOF' > src/main/java/com/orientation/plugin/OrientationPlugin.java
+          package com.orientation.plugin;
+
+          import org.bukkit.Bukkit;
+          import org.bukkit.ChatColor;
+          import org.bukkit.Material;
+          import org.bukkit.command.Command;
+          import org.bukkit.command.CommandExecutor;
+          import org.bukkit.command.CommandSender;
+          import org.bukkit.entity.Player;
+          import org.bukkit.event.EventHandler;
+          import org.bukkit.event.Listener;
+          import org.bukkit.event.inventory.InventoryClickEvent;
+          import org.bukkit.inventory.Inventory;
+          import org.bukkit.inventory.ItemStack;
+          import org.bukkit.inventory.meta.ItemMeta;
+          import org.bukkit.plugin.java.JavaPlugin;
+
+          import java.util.ArrayList;
+          import java.util.List;
+
+          public class OrientationPlugin extends JavaPlugin implements CommandExecutor, Listener {
+
+              private final String GUI_TITLE = ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "Выберите ориентацию";
+
+              @Override
+              public void onEnable() {
+                  getCommand("orient").setExecutor(this);
+                  getServer().getPluginManager().registerEvents(this, this);
+                  getLogger().info("OrientationPlugin 1.16.5 успешно включен!");
+              }
+
+              @Override
+              public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+                  if (!(sender instanceof Player)) {
+                      sender.sendMessage("Эта команда доступна только игрокам!");
+                      return true;
+                  }
+                  Player player = (Player) sender;
+                  openGUI(player);
+                  return true;
+              }
+
+              private void openGUI(Player player) {
+                  Inventory gui = Bukkit.createInventory(null, 27, GUI_TITLE);
+
+                  ItemStack glass = createItem(Material.GRAY_STAINED_GLASS_PANE, " ");
+                  for (int i = 0; i < 27; i++) {
+                      gui.setItem(i, glass);
+                  }
+
+                  gui.setItem(10, createFlag(Material.WHITE_BANNER, ChatColor.WHITE + "Гетеросексуал", "Нажмите, чтобы выбрать гетеро ориентацию"));
+                  gui.setItem(11, createFlag(Material.RED_BANNER, ChatColor.RED + "Гей / ЛГБТ", "Нажмите, чтобы выбрать гомосексуальную ориентацию"));
+                  gui.setItem(12, createFlag(Material.PINK_BANNER, ChatColor.LIGHT_PURPLE + "Лесбиянка", "Нажмите, чтобы выбрать ориентацию лесби"));
+                  gui.setItem(13, createFlag(Material.PURPLE_BANNER, ChatColor.DARK_PURPLE + "Бисексуал", "Нажмите, чтобы выбрать бисексуальную ориентацию"));
+                  gui.setItem(14, createFlag(Material.CYAN_BANNER, ChatColor.AQUA + "Пансексуал", "Нажмите, чтобы выбрать пансексуальную ориентацию"));
+                  gui.setItem(15, createFlag(Material.BLACK_BANNER, ChatColor.DARK_GRAY + "Асексуал", "Нажмите, чтобы выбрать асексуальную ориентацию"));
+                  gui.setItem(16, createFlag(Material.LIGHT_BLUE_BANNER, ChatColor.BLUE + "Трансгендер", "Нажмите, чтобы выбрать гендерный флаг"));
+
+                  player.openInventory(gui);
+              }
+
+              private ItemStack createFlag(Material material, String name, String lore) {
+                  ItemStack item = new ItemStack(material);
+                  ItemMeta meta = item.getItemMeta();
+                  if (meta != null) {
+                      meta.setDisplayName(name);
+                      List<String> loreList = new ArrayList<>();
+                      loreList.add(ChatColor.GRAY + lore);
+                      loreList.add(ChatColor.YELLOW + "▶ Кликните, чтобы выбрать!");
+                      meta.setLore(loreList);
+                      item.setItemMeta(meta);
+                  }
+                  return item;
+              }
+
+              private ItemStack createItem(Material material, String name) {
+                  ItemStack item = new ItemStack(material);
+                  ItemMeta meta = item.getItemMeta();
+                  if (meta != null) {
+                      meta.setDisplayName(name);
+                      item.setItemMeta(meta);
+                  }
+                  return item;
+              }
+
+              @EventHandler
+              public void onInventoryClick(InventoryClickEvent event) {
+                  if (event.getView() == null || !event.getView().getTitle().equals(GUI_TITLE)) {
+                      return;
+                  }
+
+                  event.setCancelled(true);
+
+                  if (event.getCurrentItem() == null || event.getCurrentItem().getType() == Material.AIR || event.getCurrentItem().getType() == Material.GRAY_STAINED_GLASS_PANE) {
+                      return;
+                  }
+
+                  Player player = (Player) event.getWhoClicked();
+                  ItemStack clickedItem = event.getCurrentItem();
+
+                  if (clickedItem.hasItemMeta() && clickedItem.getItemMeta().hasDisplayName()) {
+                      String orientationName = clickedItem.getItemMeta().getDisplayName();
+
+                      ItemStack flagToGive = clickedItem.clone();
+                      ItemMeta meta = flagToGive.getItemMeta();
+                      if (meta != null) {
+                          meta.setLore(null);
+                          flagToGive.setItemMeta(meta);
+                      }
+                      player.getInventory().addItem(flagToGive);
+
+                      player.sendMessage(ChatColor.GREEN + "✔ Вы успешно выбрали ориентацию: " + orientationName + ChatColor.GREEN + "!");
+                      player.sendMessage(ChatColor.YELLOW + "Флаг вашей ориентации добавлен вам в инвентарь!");
+
+                      Bukkit.broadcastMessage(ChatColor.LIGHT_PURPLE + "[Ориентация] " + ChatColor.AQUA + player.getName() + ChatColor.LIGHT_PURPLE + " выбрал(а) ориентацию: " + orientationName + ChatColor.LIGHT_PURPLE + "!");
+
+                      player.closeInventory();
+                  }
+              }
+          }
+          EOF
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn clean package --batch-mode
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OrientationPlugin-1.16.5
+          path: target/*.jar
